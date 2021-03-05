@@ -22,6 +22,6 @@ Headline: Tesla and other carmakers want you to pay monthly for feature subscrip
 Brief: Tesla is giving customers looking for self-driving abilities some options. Pay $10,000 in full for your car to drive itself down the street and onto the highway (with you still paying attention at the wheel) — or pay in installments for a monthly subscription…
 
 
-This script was written as an exercise for Day 36 of the Udemy course "100 Days of Code - The Complete Python Pro Bootcamp for 2021". The course was created by Dr. Angela Yu and the London App Brewery. Here's a link to the course: "https://www.udemy.com/course/100-days-of-code/".
+This script was written as an exercise for Day 36 of the Udemy course "100 Days of Code - The Complete Python Pro Bootcamp for 2021". The course was created by Dr. Angela Yu and the London App Brewery. Here's a link to the course: https://www.udemy.com/course/100-days-of-code/.
 
 The code was written all by myself.
