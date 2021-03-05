@@ -1,37 +1,89 @@
+import requests
+from twilio.rest import Client
+import os
+import datetime as dt
+
+today = dt.date.today()
+yesterday = today - dt.timedelta(days=1)
+day_before_yesterday = yesterday - dt.timedelta(days=1)
+
+num_news_articles = 3
+percentage_change_for_alert = 0.05
+
 STOCK = "TSLA"
 COMPANY_NAME = "Tesla Inc"
 
 STOCK_ENDPOINT = "https://www.alphavantage.co/query"
 NEWS_ENDPOINT = "https://newsapi.org/v2/everything"
+twilio_sid = os.environ['twilio_sid']
+twilio_auth_token = os.environ['twilio_auth_token']
+
+from_phone_number = "+xxxxxxxxxxx"
+to_phone_number = "+xxxxxxxxxxx"
+
+stock_parameters = {
+    "function": "TIME_SERIES_DAILY",
+    "symbol": STOCK,
+    "apikey": os.environ['stock_server_api_key']
+}
+
+news_parameters = {
+    "q": "Tesla",
+    "from": yesterday,
+    "sortBy": "popularity",
+    "apiKey": os.environ['news_api_key']
+}
+
+# This code gets closing price for the same stock as of yesterday and two days ago.
+# Then, these prices are compared to get price change percentage.
+
+price_response = requests.get(STOCK_ENDPOINT, params=stock_parameters)
+stock_data = price_response.json()
+yesterday_stock_data = float(stock_data["Time Series (Daily)"][str(yesterday)]["4. close"])
+two_days_ago_stock_data = float(stock_data["Time Series (Daily)"][str(day_before_yesterday)]["4. close"])
+
+percentage_change_in_price = (yesterday_stock_data - two_days_ago_stock_data) / two_days_ago_stock_data
+print(round(percentage_change_in_price, 3))
 
 
-## STEP 1: Use https://newsapi.org/docs/endpoints/everything
-# When STOCK price increase/decreases by 5% between yesterday and the day before yesterday then print("Get News").
-#HINT 1: Get the closing price for yesterday and the day before yesterday. Find the positive difference between the two prices. e.g. 40 - 20 = -20, but the positive difference is 20.
-#HINT 2: Work out the value of 5% of yerstday's closing stock price. 
+# Using news API to get selected number of news articles.
+
+news_response = requests.get(NEWS_ENDPOINT, params=news_parameters)
+news_data = news_response.json()
+news_articles = news_data['articles'][:(num_news_articles)]
 
 
+# Adding selected number of articles to a list
 
-## STEP 2: Use https://newsapi.org/docs/endpoints/everything
-# Instead of printing ("Get News"), actually fetch the first 3 articles for the COMPANY_NAME. 
-#HINT 1: Think about using the Python Slice Operator
-
-
-
-## STEP 3: Use twilio.com/docs/sms/quickstart/python
-# Send a separate message with each article's title and description to your phone number. 
-#HINT 1: Consider using a List Comprehension.
+articles_to_send = []
+articles_to_send.append([article['title']for article in news_articles])
+articles_to_send.append([article['description']for article in news_articles])
 
 
+# Formatting SMS text
 
-#Optional: Format the SMS message like this: 
-"""
-TSLA: 🔺2%
-Headline: Were Hedge Funds Right About Piling Into Tesla Inc. (TSLA)?. 
-Brief: We at Insider Monkey have gone over 821 13F filings that hedge funds and prominent investors are required to file by the SEC The 13F filings show the funds' and investors' portfolio positions as of March 31st, near the height of the coronavirus market crash.
-or
-"TSLA: 🔻5%
-Headline: Were Hedge Funds Right About Piling Into Tesla Inc. (TSLA)?. 
-Brief: We at Insider Monkey have gone over 821 13F filings that hedge funds and prominent investors are required to file by the SEC The 13F filings show the funds' and investors' portfolio positions as of March 31st, near the height of the coronavirus market crash.
-"""
+def create_message(article_number):
+    global articles_to_send
+    if percentage_change_in_price > 0:
+        message = f"TSLA: 🔺{round(percentage_change_in_price, 2)*100}%\n" \
+                  f"Headline: {articles_to_send[0][article_number]}\n" \
+                  f"Brief: {articles_to_send[1][article_number]}"
+    else:
+        message = f"TSLA: 🔻{round(percentage_change_in_price, 2) * 100}%\n" \
+                  f"Headline: {articles_to_send[0][article_number]}\n" \
+                  f"Brief: {articles_to_send[1][article_number]}"
+    return message
 
+
+# Use Twilio API to send one text message per news article. Only send messages if price change > % threshold (e.g. 5%).
+
+if percentage_change_in_price >= percentage_change_for_alert or \
+        percentage_change_in_price <= -percentage_change_for_alert:
+    twilio_client = Client(twilio_sid, twilio_auth_token)
+    for n in range(num_news_articles):
+        twilio_message = twilio_client.messages \
+            .create(
+            body=create_message(n),
+            from_=from_phone_number,
+            to=to_phone_number
+        )
